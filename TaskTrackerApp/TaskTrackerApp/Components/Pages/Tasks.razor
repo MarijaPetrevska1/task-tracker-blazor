@@ -1,0 +1,199 @@
+﻿@page "/tasks"
+@rendermode InteractiveServer
+@using TaskTrackerApp.Models
+@using TaskTrackerApp.Services
+@inject ITaskService TaskService
+
+<h3>Task Tracker</h3>
+
+<div class="mb-3">
+
+    <!-- Task title input -->
+    <input class="form-control"
+           placeholder="Enter task title"
+           @bind="newTitle" />
+
+    <!-- Task due date input -->
+    <input type="date"
+           class="form-control mt-2"
+           @bind="newDueDate" />
+
+    <!-- Add / Update button -->
+    <button class="btn btn-primary mt-2" @onclick="AddTask">
+        @(isEditing ? "Update" : "Add")
+    </button>
+
+    <!-- Validation error -->
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <p class="text-danger">@errorMessage</p>
+    }
+</div>
+
+<!-- FILTER BUTTONS -->
+<div class="mb-3">
+    <button class="btn btn-secondary"
+            @onclick="@(() => SetTaskFilter("all"))">
+        All
+    </button>
+
+    <button class="btn btn-success"
+            @onclick="@(() => SetTaskFilter("completed"))">
+        Completed
+    </button>
+
+    <button class="btn btn-warning"
+            @onclick="@(() => SetTaskFilter("active"))">
+        Active
+    </button>
+</div>
+
+<p><b>Active Tasks:</b> @ActiveCount()</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Start Date</th>
+            <th>Due Date</th>
+            <th>Completed</th>
+            <th>Edit</th>
+            <th>Delete</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @foreach (var task in FilteredTasks())
+        {
+            <tr>
+                <td>@task.Title</td>
+                <td>@task.StartDate.ToShortDateString()</td>
+                <td>@task.DueDate.ToShortDateString()</td>
+
+                <!-- STATUS -->
+                <td>
+                    <input type="checkbox"
+                           checked="@task.IsCompleted"
+                           @onchange="() => ChangeStatus(task)" />
+                </td>
+
+                <!-- EDIT -->
+                <td>
+                    <button class="btn btn-info"
+                            @onclick="() => EditTask(task)">
+                        Edit
+                    </button>
+                </td>
+
+                <!-- DELETE -->
+                <td>
+                    <button class="btn btn-danger"
+                            @onclick="() => Delete(task)">
+                        X
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+
+    string newTitle;
+    DateTime newDueDate = DateTime.Now;
+    string errorMessage;
+
+    string filter = "all";
+
+    // EDIT MODE STATE
+    bool isEditing = false;
+    TaskItem editingTask;
+
+    // ADD / UPDATE TASK
+    void AddTask()
+    {
+        if (string.IsNullOrWhiteSpace(newTitle))
+        {
+            errorMessage = "Please enter a task title. Task title cannot be empty.";
+            return;
+        }
+
+        // EDIT MODE
+        if (isEditing)
+        {
+            editingTask.Title = newTitle;
+            editingTask.DueDate = newDueDate;
+
+            isEditing = false;
+            editingTask = null;
+        }
+        // ADD MODE
+        else
+        {
+            var task = new TaskItem
+            {
+                Title = newTitle,
+                StartDate = DateTime.Now,
+                DueDate = newDueDate,
+                IsCompleted = false
+            };
+
+            TaskService.Add(task);
+        }
+
+        newTitle = "";
+        newDueDate = DateTime.Now;
+        errorMessage = "";
+    }
+
+    // EDIT TASK
+    void EditTask(TaskItem task)
+    {
+        editingTask = task;
+        newTitle = task.Title;
+        newDueDate = task.DueDate;
+        isEditing = true;
+    }
+
+    // DELETE 
+
+    void Delete(TaskItem task)
+    {
+        TaskService.Delete(task);
+    }
+
+    // CHANGE STATUS
+
+    void ChangeStatus(TaskItem task)
+    {
+        TaskService.ToggleComplete(task);
+    }
+
+    // SET FILTER TYPE (all / completed / active)
+
+    void SetTaskFilter(string f)
+    {
+        filter = f;
+    }
+
+    // RETURN FILTERED TASKS BASED ON SELECTED FILTER
+
+    List<TaskItem> FilteredTasks()
+    {
+        var tasks = TaskService.GetAll();
+
+        if (filter == "completed")
+            return tasks.Where(t => t.IsCompleted).ToList();
+
+        if (filter == "active")
+            return tasks.Where(t => !t.IsCompleted).ToList();
+
+        return tasks;
+    }
+
+    // COUNT ACTIVE (NON COMPLETED) TASKS
+    int ActiveCount()
+    {
+        return TaskService.GetAll().Count(t => !t.IsCompleted);
+    }
+}
