@@ -25,6 +25,10 @@ A simple **Task Tracker (To-Do List)** application built with **Blazor Server**.
 ---
 
 Tasks are stored in an in-memory list
+
 TaskService manages all task operations
+
 Dependency Injection is used to provide the service to components
+
 UI is built using Blazor components and data binding
+
